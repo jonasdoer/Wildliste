@@ -14,3 +14,5 @@ Nutzung auf iPhone:
 4. „Zum Home-Bildschirm“ auswählen.
 
 Hinweis: iOS installiert PWAs zuverlässig nur über Safari und eine echte http/https-Adresse, nicht direkt aus einer ZIP-Datei.
+
+Update v5: Lager-Auswahl Eigengebrauch wird auch bei bestehenden gespeicherten Browserdaten automatisch ergänzt.

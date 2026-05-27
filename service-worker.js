@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wildliste-pwa-v2';
+const CACHE_NAME = 'wildliste-pwa-v5';
 const ASSETS = [
   './',
   './index.html',
