@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wildliste – Eingabemaske & Übersicht</title>
+<!-- Version: stable-sync-feature-fix-2026-05-29 -->
 <style>
 :root{--bg:#f5f1e9;--card:#fffaf1;--ink:#263128;--muted:#6e756b;--line:#ded2bd;--brand:#315c3b;--brand2:#7c4f2a;--ok:#1b7a44;--warn:#b56a00;--bad:#a33;--chip:#e7dcc9;--shadow:0 14px 35px rgba(38,49,40,.12)}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(135deg,#f8f5ee,#eee2cf);color:var(--ink)}
@@ -21,7 +22,7 @@ label{display:block;font-size:13px;font-weight:800;color:#4f584e;margin:0 0 6px}
 <body>
 <header><div class="title"><div><h1>Wildliste</h1><p>Eingabemaske, Tabellen, Lagerübersicht und Statistiken – direkt aus der Excel-Datei übernommen.</p></div><div class="badge">Start: Eingabemaske</div></div></header>
 <main class="wrap">
-<div class="sync-card"><div><b><span id="syncDot" class="sync-dot"></span>Google Sheets Sync</b><div id="syncStatus" class="hint">Google-Sheets-Synchronisation ist eingerichtet. Dropdown-Fix aktiv. Beim Start werden die Daten aus deinem Google Sheet geladen.</div></div><div class="sync-controls"><input id="apiUrlInput" placeholder="Google-Sheets-Sync ist eingerichtet"><button class="secondary" id="saveApiBtn">URL speichern</button><button class="secondary" id="syncNowBtn">Jetzt synchronisieren</button></div></div>
+<div class="sync-card"><div><b><span id="syncDot" class="sync-dot"></span>Google Sheets Sync</b><div id="syncStatus" class="hint">Google-Sheets-Synchronisation ist eingerichtet. PC-Dropdown-Fix aktiv. Beim Start werden die Daten aus deinem Google Sheet geladen.</div></div><div class="sync-controls"><input id="apiUrlInput" placeholder="Google-Sheets-Sync ist eingerichtet"><button class="secondary" id="saveApiBtn">URL speichern</button><button class="secondary" id="syncNowBtn">Jetzt synchronisieren</button></div></div>
 <nav class="tabs" id="tabs"></nav>
 <section id="input" class="panel active">
  <div class="grid two">
@@ -42,8 +43,8 @@ label{display:block;font-size:13px;font-weight:800;color:#4f584e;margin:0 0 6px}
     <div class="field"><label>Lager</label><select id="lager"></select></div>
     <div class="field full"><label>Chargennummer Vorschau</label><div id="charge" class="charge">—</div></div>
    </div>
-   <div class="actions"><button id="saveBtn">Eintrag speichern</button><button class="secondary" id="resetBtn">Maske leeren</button><button class="secondary" id="exportBtn">Backup herunterladen</button></div>
-   <p class="hint">Hinweis: Änderungen werden lokal zwischengespeichert und mit Google Sheets synchronisiert. Backup herunterladen erzeugt eine Excel-lesbare Sicherung.</p>
+   <div class="actions"><button id="saveBtn">Eintrag speichern</button><button class="secondary" id="resetBtn">Maske leeren</button><button class="secondary" id="exportBtn">Daten exportieren</button><button class="secondary" id="backupBtn">Backup herunterladen</button></div>
+   <p class="hint">Hinweis: Änderungen werden lokal zwischengespeichert und – sobald die Apps-Script-URL hinterlegt ist – mit Google Sheets synchronisiert.</p>
   </div>
   <div class="card">
    <h3>Live-Statistiken</h3><div class="kpis" id="kpis"></div>
@@ -62,21 +63,27 @@ label{display:block;font-size:13px;font-weight:800;color:#4f584e;margin:0 0 6px}
 </main>
 <script>
 const INITIAL = {"rehwild": [{"lfdNr": "R-01", "erlegedatum": "2026-05-14", "stueckart": "Bock", "gewicht": 11, "metzger": "selbst", "metzgerkosten": "-", "produkt": "Keule", "menge": "", "chargennr": "R-01_260514_Keule_1878", "lager": "Gefrierfach HOM", "wildart": "Rehwild"}, {"lfdNr": "R-01", "erlegedatum": "2026-05-14", "stueckart": "Bock", "gewicht": 11, "metzger": "selbst", "metzgerkosten": "-", "produkt": "Rücken", "menge": "", "chargennr": "R-01_260514_Rücken_507", "lager": "Gefrierfach HOM", "wildart": "Rehwild"}, {"lfdNr": "R-01", "erlegedatum": "2026-05-14", "stueckart": "Bock", "gewicht": 11, "metzger": "selbst", "metzgerkosten": "-", "produkt": "Schulter", "menge": "", "chargennr": "R-01_260514_Schulter_1152", "lager": "Gefrierfach HOM", "wildart": "Rehwild"}, {"lfdNr": "R-01", "erlegedatum": "2026-05-14", "stueckart": "Bock", "gewicht": 11, "metzger": "selbst", "metzgerkosten": "-", "produkt": "Keule", "menge": "", "chargennr": "R-01_260514_Keule_1835", "lager": "Gefrierfach HOM", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Steaks", "menge": "", "chargennr": "R-02_260516_Steaks_470", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Gulasch", "menge": "", "chargennr": "R-02_260516_Gulasch_656", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Gulasch", "menge": "", "chargennr": "", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Hackfleisch", "menge": "", "chargennr": "R-02_260516_Hackfleisch_960", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Hackfleisch", "menge": "", "chargennr": "R-02_260516_Hackfleisch_1000", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Rücken", "menge": "", "chargennr": "R-02_260516_Rücken_516", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Rücken", "menge": "", "chargennr": "R-02_260516_Rücken_500", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Steaks", "menge": "", "chargennr": "R-02_260516_Steaks_325", "lager": "Gefrierfach WIT", "wildart": "Rehwild"}, {"lfdNr": "R-02", "erlegedatum": "2026-05-16", "stueckart": "Bock", "gewicht": 12, "metzger": "Marcel Goldau", "metzgerkosten": 50, "produkt": "Filet", "menge": "", "chargennr": "R-02_260516_Filet_200", "lager": "verkauft", "wildart": "Rehwild"}], "schwarzwild": [{"lfdNr": "S-01", "erlegedatum": "2026-05-23", "stueckart": "Bache", "gewicht": 60, "metzger": "Uwe Weiland", "metzgerkosten": "nb", "produkt": "PLATZHALTER", "menge": "", "chargennr": "S-01_260523_PLATZHALTER_nb", "lager": "Kühlhaus", "wildart": "Schwarzwild"}, {"lfdNr": "S-02", "erlegedatum": "2026-05-23", "stueckart": "Keiler", "gewicht": 45, "metzger": "Uwe Weiland", "metzgerkosten": "nb", "produkt": "PLATZHALTER", "menge": "", "chargennr": "S-02_260523_PLATZHALTER_nb", "lager": "Kühlhaus", "wildart": "Schwarzwild"}], "gewinn": [{"Chargennr": "R-02_260516_Filet_200", "Produkt": "Filet", "Menge/g": 200, "Preis/kg": 35, "Gesamt": 7, "Col7": "", "lfd.Nr.": "R-02", "Umsatz": 7, "Metzgerkosten einmalig": 50, "Gewinn nach Kosten": -43}], "preisliste": [{"Produkt": "Keule", "Preis/kg": 20}, {"Produkt": "Gulasch", "Preis/kg": 18}, {"Produkt": "Filet", "Preis/kg": 35}, {"Produkt": "Hackfleisch", "Preis/kg": 20}, {"Produkt": "Braten", "Preis/kg": 25}, {"Produkt": "Rücken", "Preis/kg": 30}, {"Produkt": "Schulter", "Preis/kg": 20}, {"Produkt": "Bratwurst", "Preis/kg": 9}, {"Produkt": "Bockwurst", "Preis/kg": 5}, {"Produkt": "Leberkäse", "Preis/kg": 10}, {"Produkt": "Salami", "Preis/kg": 10}, {"Produkt": "Pfefferbeisser", "Preis/kg": 7}, {"Produkt": "Steaks", "Preis/kg": 25}], "listen": {"rehwild": ["Kitz", "Schmalreh", "Bock", "Ricke"], "rotwild": [], "schwarzwild": ["Frischling", "Überläufer", "Keiler", "Bache"], "metzger": ["Matthias Balz", "Uwe Weiland", "Christien", "Marcel Goldau", "selbst"], "lager": ["Gefrierfach WIT", "Gefrierfach HOM", "verkauft", "Müll", "Kühlhaus", "Eigengebrauch"], "produkt": ["Keule", "Gulasch", "Filet", "Rücken", "Schulter", "Braten", "Hackfleisch", "Steaks", "PLATZHALTER"]}};
-const STORE_KEY = 'wildliste_app_v2';
+
+const DEFAULT_LISTEN = {
+  rehwild: ['Kitz','Schmalreh','Bock','Ricke'],
+  schwarzwild: ['Frischling','Überläufer','Keiler','Bache'],
+  metzger: ['Matthias Balz','Uwe Weiland','Christien','Marcel Goldau','selbst'],
+  lager: ['Gefrierfach WIT','Gefrierfach HOM','verkauft','Müll','Kühlhaus','Eigengebrauch'],
+  produkt: ['Keule','Gulasch','Filet','Rücken','Schulter','Braten','Hackfleisch','Steaks','PLATZHALTER']
+};
+const STORE_KEY = 'wildliste_app_v3_pc_fix';
 const API_URL_KEY = 'wildliste_google_apps_script_url';
 const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwHiJDVX_2973SX8zY6ibaX4zjG5XsR02tiMgIEZTU1vmGRkgzXOpKLbP-vhbfM0TI1XA/exec';
 let API_URL = localStorage.getItem(API_URL_KEY) || DEFAULT_API_URL;
 localStorage.setItem(API_URL_KEY, API_URL);
 let syncBusy = false;
 let state = loadState();
-// Migration: stellt sicher, dass neue Auswahlwerte auch bei bereits gespeicherten Browser-Daten vorhanden sind.
-state.listen = state.listen || {};
-state.listen.lager = Array.isArray(state.listen.lager) ? state.listen.lager : [];
-if (!state.listen.lager.includes('Eigengebrauch')) state.listen.lager.push('Eigengebrauch');
+// Migration: stellt sicher, dass Auswahlwerte auch bei alten/leeren Browser- oder Google-Sheet-Daten vorhanden sind.
+state = normalizeState(state);
 persist();
 let editTarget = null;
 const tabs = [{id:'input',label:'Eingabemaske'},{id:'stats',label:'Statistiken'},{id:'rehwild',label:'Rehwild'},{id:'schwarzwild',label:'Schwarzwild'},{id:'lager',label:'Wildkühlschrank / Lager'},{id:'gewinn',label:'Gewinn'},{id:'preisliste',label:'Preisliste'}];
-function loadState(){try{return JSON.parse(localStorage.getItem(STORE_KEY))||structuredClone(INITIAL)}catch(e){return structuredClone(INITIAL)}}
+function loadState(){try{return normalizeState(JSON.parse(localStorage.getItem(STORE_KEY))||structuredClone(INITIAL))}catch(e){return normalizeState(structuredClone(INITIAL))}}
 function persist(){localStorage.setItem(STORE_KEY, JSON.stringify(state)); queueCloudSave();}
 function allRows(){return [...state.rehwild.map((r,i)=>({...r,wildart:r.wildart||'Rehwild',__collection:'rehwild',__index:i})), ...state.schwarzwild.map((r,i)=>({...r,wildart:r.wildart||'Schwarzwild',__collection:'schwarzwild',__index:i}))]}
 function isSold(r){return String(r.lager||'').trim().toLowerCase()==='verkauft'}
@@ -84,26 +91,23 @@ function numeric(v){ if(typeof v==='number') return v; const n=parseFloat(String
 function money(v){return numeric(v).toLocaleString('de-DE',{style:'currency',currency:'EUR'})}
 function grams(v){return numeric(v).toLocaleString('de-DE')+' g'}
 function dateCompact(d){ if(!d) return ''; const x = new Date(d+'T00:00:00'); if(isNaN(x)) return ''; return String(x.getFullYear()).slice(2)+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0'); }
-function calcChargeBase(r){ return (r.lfdNr && r.erlegedatum && r.produkt && r.menge) ? `${r.lfdNr}_${dateCompact(r.erlegedatum)}_${r.produkt}_${r.menge}` : ''; }
-function suffixFromNumber(n){ let s=''; n++; while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26); } return s; }
-function chargeBaseOf(value){ return String(value||'').replace(/_[A-Z]+$/,''); }
-function uniqueCharge(r, ignoreTarget=null){
- const base=calcChargeBase(r); if(!base) return '';
- const used=new Set();
- allRows().forEach(row=>{
-   if(ignoreTarget && row.__collection===ignoreTarget.collection && row.__index===ignoreTarget.index) return;
-   const c=String(row.chargennr||'');
-   if(c===base) used.add('');
-   else if(c.startsWith(base+'_')){
-     const tail=c.slice(base.length+1);
-     if(/^[A-Z]+$/.test(tail)) used.add(tail);
-   }
- });
- if(!used.has('')) return base;
- for(let i=0;i<1000;i++){ const suf=suffixFromNumber(i); if(!used.has(suf)) return `${base}_${suf}`; }
- return `${base}_${Date.now()}`;
+function calcCharge(r){ return baseCharge(r); }
+function baseCharge(r){ return (r.lfdNr && r.erlegedatum && r.produkt && r.menge) ? `${r.lfdNr}_${dateCompact(r.erlegedatum)}_${r.produkt}_${r.menge}` : ''; }
+function suffixFromNumber(n){
+ let s='';
+ while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26); }
+ return s;
 }
-function calcCharge(r){ return uniqueCharge(r, editTarget); }
+function uniqueCharge(r, exclude=null){
+ const base=baseCharge(r);
+ if(!base) return '';
+ const rows=allRows().filter(x=>!(exclude && x.__collection===exclude.collection && x.__index===exclude.index));
+ const used=new Set(rows.map(x=>String(x.chargennr||'').trim()).filter(Boolean));
+ if(!used.has(base)) return base;
+ let n=1;
+ while(used.has(base+suffixFromNumber(n))) n++;
+ return base+suffixFromNumber(n);
+}
 function priceFor(p){ const row = state.preisliste.find(x=>x.Produkt===p); return numeric(row?.['Preis/kg']); }
 function unique(arr){return [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'de'))}
 function setupTabs(){const nav=document.getElementById('tabs'); nav.innerHTML=tabs.map(t=>`<button class="tab ${t.id==='input'?'active':''}" data-tab="${t.id}">${t.label}</button>`).join(''); nav.addEventListener('click',e=>{if(!e.target.dataset.tab)return; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); e.target.classList.add('active'); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); document.getElementById(e.target.dataset.tab).classList.add('active');});}
@@ -113,7 +117,7 @@ function initForm(){
  fillSelect('metzger',state.listen.metzger,true); fillSelect('produkt',state.listen.produkt,true); fillSelect('lager',state.listen.lager,true); updateStueckart(); updateLfdDatalist();
  ['wildart','lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','lager'].forEach(id=>document.getElementById(id).addEventListener('input',onFormChange));
  document.getElementById('wildart').addEventListener('change',()=>{updateStueckart(); updateLfdDatalist(); onFormChange();});
- document.getElementById('saveBtn').addEventListener('click',saveEntry); document.getElementById('resetBtn').addEventListener('click',resetForm); document.getElementById('exportBtn').addEventListener('click',exportData);
+ document.getElementById('saveBtn').addEventListener('click',saveEntry); document.getElementById('resetBtn').addEventListener('click',resetForm); document.getElementById('exportBtn').addEventListener('click',exportData); document.getElementById('backupBtn').addEventListener('click',exportExcelBackup);
 }
 function updateStueckart(){ const wild=document.getElementById('wildart').value; fillSelect('stueckart', wild==='Rehwild'?state.listen.rehwild:state.listen.schwarzwild, true); }
 function updateLfdDatalist(){ const wild=document.getElementById('wildart').value; const nums=unique((wild==='Rehwild'?state.rehwild:state.schwarzwild).map(r=>r.lfdNr)); document.getElementById('lfdNrList').innerHTML=nums.map(n=>`<option value="${escapeHtml(n)}"></option>`).join(''); }
@@ -122,7 +126,7 @@ function onFormChange(e){
  const wild=document.getElementById('wildart').value, lfd=document.getElementById('lfdNr').value.trim(); const existing=firstByLfd(lfd,wild);
  if((e?.target?.id==='lfdNr'||e?.target?.id==='wildart') && existing){ ['erlegedatum','stueckart','gewicht','metzger','metzgerkosten'].forEach(id=>{document.getElementById(id).value=existing[id]??''}); }
  const status=document.getElementById('lookupStatus'); if(!lfd){status.className='status warn';status.textContent='Bitte lfd. Nr. wählen oder neu eingeben.'} else if(existing){status.className='status ok';status.textContent='✓ Stammdaten gefunden und übernommen.'} else {status.className='status warn';status.textContent='⚠ Neue lfd. Nr. – Stammdaten manuell eintragen.'}
- const r=readForm(); document.getElementById('charge').textContent=calcCharge(r)||'—';
+ const r=readForm(); document.getElementById('charge').textContent=uniqueCharge(r, editTarget)||'—';
 }
 function readForm(){return {wildart:document.getElementById('wildart').value, lfdNr:document.getElementById('lfdNr').value.trim(), erlegedatum:document.getElementById('erlegedatum').value, stueckart:document.getElementById('stueckart').value, gewicht:document.getElementById('gewicht').value, metzger:document.getElementById('metzger').value, metzgerkosten:document.getElementById('metzgerkosten').value, produkt:document.getElementById('produkt').value, menge:document.getElementById('menge').value, lager:document.getElementById('lager').value};}
 function saveEntry(){ const r=readForm(); const missing=['lfdNr','erlegedatum','stueckart','produkt','menge','lager'].filter(k=>!r[k]); if(missing.length){alert('Bitte Pflichtfelder füllen: '+missing.join(', '));return;} r.chargennr=uniqueCharge(r, editTarget); const targetCollection=r.wildart==='Rehwild'?'rehwild':'schwarzwild'; if(editTarget){ state[editTarget.collection].splice(editTarget.index,1); state[targetCollection].push(r); editTarget=null; setEditMode(false); } else { state[targetCollection].push(r); } persist(); document.getElementById('inputCard').classList.add('success-flash'); setTimeout(()=>document.getElementById('inputCard').classList.remove('success-flash'),1000); updateAll(); resetProductFieldsOnly(); alert('Eintrag gespeichert. Tabellen und Statistiken wurden aktualisiert.'); }
@@ -131,8 +135,8 @@ function resetForm(){ editTarget=null; setEditMode(false); ['lfdNr','erlegedatum
 function setEditMode(active){ document.getElementById('editNote').classList.toggle('active',!!active); document.getElementById('saveBtn').textContent=active?'Änderungen speichern':'Eintrag speichern'; }
 function editEntry(collection,index){ const r=state[collection][index]; if(!r)return; editTarget={collection,index}; document.getElementById('wildart').value=collection==='rehwild'?'Rehwild':'Schwarzwild'; updateStueckart(); updateLfdDatalist(); ['lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','lager'].forEach(id=>{document.getElementById(id).value=r[id]??''}); setEditMode(true); onFormChange(); document.querySelector('[data-tab="input"]').click(); window.scrollTo({top:0,behavior:'smooth'}); }
 function deleteEntry(collection,index){ const r=state[collection][index]; if(!r)return; if(confirm(`Eintrag wirklich löschen?\n${r.chargennr||r.lfdNr||''}`)){ state[collection].splice(index,1); if(editTarget && editTarget.collection===collection && editTarget.index===index){editTarget=null; setEditMode(false);} persist(); updateAll(); } }
-function markSold(collection,index){ const r=state[collection][index]; if(!r)return; if(isSold(r)){ alert('Dieser Eintrag ist bereits als verkauft markiert.'); return; } if(confirm(`Eintrag als verkauft markieren?\n${r.chargennr||r.lfdNr||''}`)){ r.lager='verkauft'; persist(); updateAll(); setSyncStatus('Als verkauft markiert – wird mit Google Sheets synchronisiert ...','warn'); } }
-function bindRowActions(){ document.addEventListener('click',e=>{ const more=e.target.closest('.more-btn'); document.querySelectorAll('.row-menu.open').forEach(m=>{if(!more || !m.contains(more)) m.classList.remove('open')}); if(more){more.nextElementSibling.classList.toggle('open'); return;} const act=e.target.closest('[data-action]'); if(!act)return; const collection=act.dataset.collection; const index=Number(act.dataset.index); if(act.dataset.action==='edit') editEntry(collection,index); if(act.dataset.action==='sold') markSold(collection,index); if(act.dataset.action==='delete') deleteEntry(collection,index); }); }
+function markAsSold(collection,index){ const r=state[collection][index]; if(!r)return; if(confirm(`Diesen Eintrag als verkauft markieren?\n${r.chargennr||r.lfdNr||''}`)){ r.lager='verkauft'; persist(); updateAll(); } }
+function bindRowActions(){ document.addEventListener('click',e=>{ const more=e.target.closest('.more-btn'); document.querySelectorAll('.row-menu.open').forEach(m=>{if(!more || !m.contains(more)) m.classList.remove('open')}); if(more){more.nextElementSibling.classList.toggle('open'); return;} const act=e.target.closest('[data-action]'); if(!act)return; const collection=act.dataset.collection; const index=Number(act.dataset.index); if(act.dataset.action==='edit') editEntry(collection,index); if(act.dataset.action==='sold') markAsSold(collection,index); if(act.dataset.action==='delete') deleteEntry(collection,index); }); }
 function actionCell(r){ if(r.__collection===undefined || r.__index===undefined) return ''; const soldBtn=isSold(r)?'':`<button data-action="sold" data-collection="${r.__collection}" data-index="${r.__index}">Als verkauft markieren</button>`; return `<td class="action-cell"><button class="more-btn" title="Optionen">⋮</button><div class="row-menu"><button data-action="edit" data-collection="${r.__collection}" data-index="${r.__index}">Bearbeiten</button>${soldBtn}<button class="delete" data-action="delete" data-collection="${r.__collection}" data-index="${r.__index}">Löschen</button></div></td>`; }
 function table(id, rows, cols, withActions=false){ const el=document.getElementById(id); el.innerHTML='<thead><tr>'+cols.map(c=>`<th>${escapeHtml(c.label)}</th>`).join('')+(withActions?'<th>Optionen</th>':'')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+cols.map(c=>`<td>${escapeHtml(c.f?c.f(r):r[c.key])}</td>`).join('')+(withActions?actionCell(r):'')+'</tr>').join('')+'</tbody>'; }
 const dataCols=[{key:'lfdNr',label:'lfd. Nr.'},{key:'erlegedatum',label:'Erlegedatum'},{key:'stueckart',label:'Stückart'},{key:'gewicht',label:'Gewicht kg'},{key:'metzger',label:'Metzger'},{key:'metzgerkosten',label:'Metzgerkosten'},{key:'produkt',label:'Produkt'},{key:'menge',label:'Menge/g'},{key:'chargennr',label:'Chargennr.'},{key:'lager',label:'Lager'}];
@@ -143,28 +147,26 @@ function bars(id, obj, formatter=x=>x){ const max=Math.max(1,...Object.values(ob
 function renderStats(){ const rows=allRows(); const totalG=rows.reduce((s,r)=>s+numeric(r.menge),0); const sold=rows.filter(isSold); const profitRows=renderGewinn(); const revenue=profitRows.reduce((s,r)=>s+r.gesamt,0), profit=profitRows.reduce((s,r)=>s+r.gewinn,0); const uniquePieces=unique(rows.map(r=>r.lfdNr)).length; const kpiHtml=[['Einträge',rows.length],['lfd. Nr.',uniquePieces],['Menge gesamt',grams(totalG)],['Umsatz verkauft',money(revenue)]].map(([a,b])=>`<div class="kpi"><b>${escapeHtml(b)}</b><span>${a}</span></div>`).join(''); document.getElementById('kpis').innerHTML=kpiHtml; document.getElementById('statsKpis').innerHTML=kpiHtml+`<div class="kpi"><b>${money(profit)}</b><span>Gewinn nach Kosten</span></div>`; bars('lagerBars',groupSum(rows,'lager'),v=>v+' Einträge'); bars('productBars',groupSum(rows,'produkt',r=>numeric(r.menge)),grams); document.getElementById('quickChips').innerHTML=[`Rehwild: ${state.rehwild.length}`,`Schwarzwild: ${state.schwarzwild.length}`,`Verkauft: ${sold.length}`,`Produkte: ${unique(rows.map(r=>r.produkt)).length}`].map(x=>`<span class="chip">${escapeHtml(x)}</span>`).join(''); document.getElementById('profitBox').innerHTML=`<div class="kpis"><div class="kpi"><b>${sold.length}</b><span>Verkaufte Positionen</span></div><div class="kpi"><b>${money(revenue)}</b><span>Umsatz</span></div><div class="kpi"><b>${money(profit)}</b><span>Gewinn</span></div></div>`; }
 function updateFilters(){ const lagers=unique(allRows().map(r=>r.lager)); const lf=document.getElementById('lagerFilter'); const current=lf.value; lf.innerHTML='<option value="">Alle Lager</option>'+lagers.map(l=>`<option>${escapeHtml(l)}</option>`).join(''); lf.value=current; updateLfdDatalist(); }
 function updateAll(){ updateFilters(); renderTables(); renderStats(); }
-function xmlEscape(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
-function sheetXml(name, headers, rows){
- const headerXml='<Row>'+headers.map(h=>`<Cell><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`).join('')+'</Row>';
- const rowsXml=rows.map(r=>'<Row>'+headers.map(h=>{const v=r[h]??''; const n=(typeof v==='number' || (String(v).trim()!=='' && !isNaN(Number(String(v).replace(',','.'))))) && !String(v).match(/^0/); return `<Cell><Data ss:Type="${n?'Number':'String'}">${xmlEscape(v)}</Data></Cell>`;}).join('')+'</Row>').join('');
- return `<Worksheet ss:Name="${xmlEscape(name).slice(0,31)}"><Table>${headerXml}${rowsXml}</Table></Worksheet>`;
+function exportData(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='wildliste-export.json'; a.click(); URL.revokeObjectURL(a.href); }
+function htmlTableForBackup(title, rows, cols){
+ const header=cols.map(c=>`<th>${escapeHtml(c.label)}</th>`).join('');
+ const body=rows.map(r=>'<tr>'+cols.map(c=>`<td>${escapeHtml(c.f?c.f(r):r[c.key])}</td>`).join('')+'</tr>').join('');
+ return `<h2>${escapeHtml(title)}</h2><table border="1"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table><br>`;
 }
-function buildBackupWorkbook(){
- const rows=allRows().map(({__collection,__index,...r})=>r);
- const lagerRows=allRows().filter(r=>!isSold(r)).map(({__collection,__index,...r})=>r);
- const gewinnRows=renderGewinn().map(r=>({chargennr:r.chargennr, produkt:r.produkt, menge:r.menge, preisKg:r.preis, gesamt:r.gesamt, lfdNr:r.lfdNr, metzgerkostenEinmalig:r.kostenEinmalig, gewinn:r.gewinn}));
- const preise=state.preisliste.map(r=>({Produkt:r.Produkt, Preis_kg:r['Preis/kg']}));
- const dataHeaders=['wildart','lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','chargennr','lager'];
- const gewinnHeaders=['chargennr','produkt','menge','preisKg','gesamt','lfdNr','metzgerkostenEinmalig','gewinn'];
- const preisHeaders=['Produkt','Preis_kg'];
- return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Author>Wildliste</Author><Created>${new Date().toISOString()}</Created></DocumentProperties>${sheetXml('Alle Eintraege',dataHeaders,rows)}${sheetXml('Rehwild',dataHeaders,state.rehwild)}${sheetXml('Schwarzwild',dataHeaders,state.schwarzwild)}${sheetXml('Wildkuehlschrank',dataHeaders,lagerRows)}${sheetXml('Gewinn',gewinnHeaders,gewinnRows)}${sheetXml('Preisliste',preisHeaders,preise)}</Workbook>`;
-}
-function exportData(){
- const blob=new Blob([buildBackupWorkbook()],{type:'application/vnd.ms-excel'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='Wildliste_Backup_'+new Date().toISOString().slice(0,10)+'.xls';
- a.click(); URL.revokeObjectURL(a.href);
+function exportExcelBackup(){
+ const rows=allRows();
+ const profitRows=renderGewinn();
+ const lagerRows=rows.filter(r=>!isSold(r));
+ const preise=state.preisliste||[];
+ const parts=[];
+ parts.push(htmlTableForBackup('Rehwild', state.rehwild||[], dataCols));
+ parts.push(htmlTableForBackup('Schwarzwild', state.schwarzwild||[], dataCols));
+ parts.push(htmlTableForBackup('Wildkuehlschrank_Lager', lagerRows, [{key:'wildart',label:'Wildart'},...dataCols]));
+ parts.push(htmlTableForBackup('Gewinn', profitRows, [{key:'chargennr',label:'Chargennr.'},{key:'produkt',label:'Produkt'},{key:'menge',label:'Menge/g'},{key:'preis',label:'Preis/kg',f:r=>r.preis},{key:'gesamt',label:'Gesamt'},{key:'lfdNr',label:'lfd.Nr.'},{key:'kostenEinmalig',label:'Metzgerkosten einmalig'},{key:'gewinn',label:'Gewinn nach Kosten'}]));
+ parts.push(htmlTableForBackup('Preisliste', preise, [{key:'Produkt',label:'Produkt'},{key:'Preis/kg',label:'Preis/kg'}]));
+ const html=`<!doctype html><html><head><meta charset="utf-8"></head><body>${parts.join('')}</body></html>`;
+ const blob=new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'});
+ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Wildliste_Backup_'+new Date().toISOString().slice(0,10)+'.xls'; a.click(); URL.revokeObjectURL(a.href);
 }
 function bindSearch(){ ['searchReh','searchSchwarz','searchLager','lagerFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderTables)); }
 
@@ -179,25 +181,35 @@ function mergeList(current, fallback){
  const fb = Array.isArray(fallback) ? fallback.filter(Boolean) : [];
  return unique([...base, ...fb]);
 }
+function mergeDefaultList(key, incoming){
+ const base = DEFAULT_LISTEN[key] || [];
+ const extra = Array.isArray(incoming) ? incoming : [];
+ return unique([...base, ...extra].filter(v => String(v || '').trim()));
+}
 function normalizeState(s){
  s=s||{};
  s.rehwild=Array.isArray(s.rehwild)?s.rehwild:[];
  s.schwarzwild=Array.isArray(s.schwarzwild)?s.schwarzwild:[];
  s.preisliste=Array.isArray(s.preisliste)&&s.preisliste.length?s.preisliste:(INITIAL.preisliste||[]);
  s.listen=s.listen||{};
- s.listen.rehwild = mergeList(s.listen.rehwild, INITIAL.listen.rehwild);
- s.listen.schwarzwild = mergeList(s.listen.schwarzwild, INITIAL.listen.schwarzwild);
- s.listen.metzger = mergeList(s.listen.metzger, INITIAL.listen.metzger);
- s.listen.lager = mergeList(s.listen.lager, INITIAL.listen.lager);
- s.listen.produkt = mergeList(s.listen.produkt, INITIAL.listen.produkt);
- if(!s.listen.lager.includes('Eigengebrauch')) s.listen.lager.push('Eigengebrauch');
+ s.listen.rehwild = mergeDefaultList('rehwild', s.listen.rehwild);
+ s.listen.schwarzwild = mergeDefaultList('schwarzwild', s.listen.schwarzwild);
+ s.listen.metzger = mergeDefaultList('metzger', s.listen.metzger);
+ s.listen.lager = mergeDefaultList('lager', s.listen.lager);
+ s.listen.produkt = mergeDefaultList('produkt', s.listen.produkt);
  return s;
 }
-function refreshDropdowns(){
- fillSelect('metzger',state.listen.metzger,true);
- fillSelect('produkt',state.listen.produkt,true);
- fillSelect('lager',state.listen.lager,true);
+function rebuildFormSelects(){
+ const keep = {};
+ ['stueckart','metzger','produkt','lager'].forEach(id => keep[id] = document.getElementById(id)?.value || '');
+ fillSelect('metzger', state.listen.metzger, true);
+ fillSelect('produkt', state.listen.produkt, true);
+ fillSelect('lager', state.listen.lager, true);
  updateStueckart();
+ ['stueckart','metzger','produkt','lager'].forEach(id => {
+   const el = document.getElementById(id);
+   if (el && [...el.options].some(o => o.value === keep[id])) el.value = keep[id];
+ });
  updateLfdDatalist();
 }
 async function cloudRequest(action, payload={}){
@@ -247,5 +259,7 @@ function initSyncControls(){
 }
 
 setupTabs(); initForm(); bindSearch(); bindRowActions(); updateAll(); onFormChange(); initSyncControls();
+
+console.log("Wildliste PC Dropdown Fix v2026-05-29-2 geladen");
 </script>
 </body></html>
