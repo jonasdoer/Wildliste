@@ -1,18 +1,10 @@
-Wildliste PWA
-=============
+Wildliste mit Google Sheets Backend
 
-Inhalt:
-- index.html: die App/Webseite
-- manifest.json: App-Informationen für Installation
-- service-worker.js: Offline-Cache
-- icons/: App-Icons
-
-Nutzung auf iPhone:
-1. Den Ordner auf einen Webspace hochladen oder lokal über einen kleinen Server testen.
-2. Die URL in Safari öffnen.
-3. Teilen-Symbol antippen.
-4. „Zum Home-Bildschirm“ auswählen.
-
-Hinweis: iOS installiert PWAs zuverlässig nur über Safari und eine echte http/https-Adresse, nicht direkt aus einer ZIP-Datei.
-
-Update v5: Lager-Auswahl Eigengebrauch wird auch bei bestehenden gespeicherten Browserdaten automatisch ergänzt.
+1) In Google Sheets: Erweiterungen > Apps Script öffnen.
+2) Inhalt von Code.gs komplett einfügen und speichern.
+3) Funktion setupWildlisteSheets einmal ausführen und Berechtigungen bestätigen.
+4) Bereitstellen > Neue Bereitstellung > Typ: Web-App.
+5) Ausführen als: Ich. Zugriff: Jeder.
+6) Bereitstellen und die Web-App-URL kopieren.
+7) index.html auf GitHub Pages hochladen/ersetzen.
+8) Wildliste öffnen, Web-App-URL oben einfügen und URL speichern.
