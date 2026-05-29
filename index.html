@@ -21,7 +21,7 @@ label{display:block;font-size:13px;font-weight:800;color:#4f584e;margin:0 0 6px}
 <body>
 <header><div class="title"><div><h1>Wildliste</h1><p>Eingabemaske, Tabellen, Lagerübersicht und Statistiken – direkt aus der Excel-Datei übernommen.</p></div><div class="badge">Start: Eingabemaske</div></div></header>
 <main class="wrap">
-<div class="sync-card"><div><b><span id="syncDot" class="sync-dot"></span>Google Sheets Sync</b><div id="syncStatus" class="hint">Google-Sheets-Synchronisation ist eingerichtet. Dropdowns sind fest abgesichert. Beim Start werden die Daten aus deinem Google Sheet geladen.</div></div><div class="sync-controls"><input id="apiUrlInput" placeholder="Google-Sheets-Sync ist eingerichtet"><button class="secondary" id="saveApiBtn">URL speichern</button><button class="secondary" id="syncNowBtn">Jetzt synchronisieren</button></div></div>
+<div class="sync-card"><div><b><span id="syncDot" class="sync-dot"></span>Google Sheets Sync</b><div id="syncStatus" class="hint">Google-Sheets-Synchronisation ist eingerichtet. Dropdown-Fix aktiv. Beim Start werden die Daten aus deinem Google Sheet geladen.</div></div><div class="sync-controls"><input id="apiUrlInput" placeholder="Google-Sheets-Sync ist eingerichtet"><button class="secondary" id="saveApiBtn">URL speichern</button><button class="secondary" id="syncNowBtn">Jetzt synchronisieren</button></div></div>
 <nav class="tabs" id="tabs"></nav>
 <section id="input" class="panel active">
  <div class="grid two">
@@ -42,8 +42,8 @@ label{display:block;font-size:13px;font-weight:800;color:#4f584e;margin:0 0 6px}
     <div class="field"><label>Lager</label><select id="lager"></select></div>
     <div class="field full"><label>Chargennummer Vorschau</label><div id="charge" class="charge">—</div></div>
    </div>
-   <div class="actions"><button id="saveBtn">Eintrag speichern</button><button class="secondary" id="resetBtn">Maske leeren</button><button class="secondary" id="exportBtn">Daten exportieren</button></div>
-   <p class="hint">Hinweis: Änderungen werden lokal zwischengespeichert und – sobald die Apps-Script-URL hinterlegt ist – mit Google Sheets synchronisiert.</p>
+   <div class="actions"><button id="saveBtn">Eintrag speichern</button><button class="secondary" id="resetBtn">Maske leeren</button><button class="secondary" id="exportBtn">Backup herunterladen</button></div>
+   <p class="hint">Hinweis: Änderungen werden lokal zwischengespeichert und mit Google Sheets synchronisiert. Backup herunterladen erzeugt eine Excel-lesbare Sicherung.</p>
   </div>
   <div class="card">
    <h3>Live-Statistiken</h3><div class="kpis" id="kpis"></div>
@@ -68,11 +68,12 @@ const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwHiJDVX_2973SX
 let API_URL = localStorage.getItem(API_URL_KEY) || DEFAULT_API_URL;
 localStorage.setItem(API_URL_KEY, API_URL);
 let syncBusy = false;
-// Wichtig: Zustand beim Start immer normalisieren.
-// Dadurch bleiben die Dropdown-Listen auch dann erhalten, wenn Google Sheets noch leer ist
-// oder eine alte/browsergespeicherte Version ohne Listen geladen wird.
-let state = normalizeState(loadState());
-localStorage.setItem(STORE_KEY, JSON.stringify(state));
+let state = loadState();
+// Migration: stellt sicher, dass neue Auswahlwerte auch bei bereits gespeicherten Browser-Daten vorhanden sind.
+state.listen = state.listen || {};
+state.listen.lager = Array.isArray(state.listen.lager) ? state.listen.lager : [];
+if (!state.listen.lager.includes('Eigengebrauch')) state.listen.lager.push('Eigengebrauch');
+persist();
 let editTarget = null;
 const tabs = [{id:'input',label:'Eingabemaske'},{id:'stats',label:'Statistiken'},{id:'rehwild',label:'Rehwild'},{id:'schwarzwild',label:'Schwarzwild'},{id:'lager',label:'Wildkühlschrank / Lager'},{id:'gewinn',label:'Gewinn'},{id:'preisliste',label:'Preisliste'}];
 function loadState(){try{return JSON.parse(localStorage.getItem(STORE_KEY))||structuredClone(INITIAL)}catch(e){return structuredClone(INITIAL)}}
@@ -83,16 +84,30 @@ function numeric(v){ if(typeof v==='number') return v; const n=parseFloat(String
 function money(v){return numeric(v).toLocaleString('de-DE',{style:'currency',currency:'EUR'})}
 function grams(v){return numeric(v).toLocaleString('de-DE')+' g'}
 function dateCompact(d){ if(!d) return ''; const x = new Date(d+'T00:00:00'); if(isNaN(x)) return ''; return String(x.getFullYear()).slice(2)+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0'); }
-function calcCharge(r){ return (r.lfdNr && r.erlegedatum && r.produkt && r.menge) ? `${r.lfdNr}_${dateCompact(r.erlegedatum)}_${r.produkt}_${r.menge}` : ''; }
+function calcChargeBase(r){ return (r.lfdNr && r.erlegedatum && r.produkt && r.menge) ? `${r.lfdNr}_${dateCompact(r.erlegedatum)}_${r.produkt}_${r.menge}` : ''; }
+function suffixFromNumber(n){ let s=''; n++; while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26); } return s; }
+function chargeBaseOf(value){ return String(value||'').replace(/_[A-Z]+$/,''); }
+function uniqueCharge(r, ignoreTarget=null){
+ const base=calcChargeBase(r); if(!base) return '';
+ const used=new Set();
+ allRows().forEach(row=>{
+   if(ignoreTarget && row.__collection===ignoreTarget.collection && row.__index===ignoreTarget.index) return;
+   const c=String(row.chargennr||'');
+   if(c===base) used.add('');
+   else if(c.startsWith(base+'_')){
+     const tail=c.slice(base.length+1);
+     if(/^[A-Z]+$/.test(tail)) used.add(tail);
+   }
+ });
+ if(!used.has('')) return base;
+ for(let i=0;i<1000;i++){ const suf=suffixFromNumber(i); if(!used.has(suf)) return `${base}_${suf}`; }
+ return `${base}_${Date.now()}`;
+}
+function calcCharge(r){ return uniqueCharge(r, editTarget); }
 function priceFor(p){ const row = state.preisliste.find(x=>x.Produkt===p); return numeric(row?.['Preis/kg']); }
 function unique(arr){return [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'de'))}
 function setupTabs(){const nav=document.getElementById('tabs'); nav.innerHTML=tabs.map(t=>`<button class="tab ${t.id==='input'?'active':''}" data-tab="${t.id}">${t.label}</button>`).join(''); nav.addEventListener('click',e=>{if(!e.target.dataset.tab)return; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); e.target.classList.add('active'); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); document.getElementById(e.target.dataset.tab).classList.add('active');});}
-function fillSelect(id, values, allowBlank=false){
- const el=document.getElementById(id);
- const fallbackMap={stueckart:document.getElementById('wildart')?.value==='Schwarzwild'?INITIAL.listen.schwarzwild:INITIAL.listen.rehwild, metzger:INITIAL.listen.metzger, produkt:INITIAL.listen.produkt, lager:INITIAL.listen.lager};
- const safeValues = Array.isArray(values) && values.length ? values : (fallbackMap[id] || []);
- el.innerHTML=(allowBlank?'<option value=""></option>':'')+safeValues.map(v=>`<option>${escapeHtml(v)}</option>`).join('');
-}
+function fillSelect(id, values, allowBlank=false){const el=document.getElementById(id); el.innerHTML=(allowBlank?'<option value=""></option>':'')+values.map(v=>`<option>${escapeHtml(v)}</option>`).join('');}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function initForm(){
  fillSelect('metzger',state.listen.metzger,true); fillSelect('produkt',state.listen.produkt,true); fillSelect('lager',state.listen.lager,true); updateStueckart(); updateLfdDatalist();
@@ -100,11 +115,7 @@ function initForm(){
  document.getElementById('wildart').addEventListener('change',()=>{updateStueckart(); updateLfdDatalist(); onFormChange();});
  document.getElementById('saveBtn').addEventListener('click',saveEntry); document.getElementById('resetBtn').addEventListener('click',resetForm); document.getElementById('exportBtn').addEventListener('click',exportData);
 }
-function updateStueckart(){
- const wild=document.getElementById('wildart').value;
- const vals = wild==='Rehwild' ? (state.listen?.rehwild?.length?state.listen.rehwild:INITIAL.listen.rehwild) : (state.listen?.schwarzwild?.length?state.listen.schwarzwild:INITIAL.listen.schwarzwild);
- fillSelect('stueckart', vals, true);
-}
+function updateStueckart(){ const wild=document.getElementById('wildart').value; fillSelect('stueckart', wild==='Rehwild'?state.listen.rehwild:state.listen.schwarzwild, true); }
 function updateLfdDatalist(){ const wild=document.getElementById('wildart').value; const nums=unique((wild==='Rehwild'?state.rehwild:state.schwarzwild).map(r=>r.lfdNr)); document.getElementById('lfdNrList').innerHTML=nums.map(n=>`<option value="${escapeHtml(n)}"></option>`).join(''); }
 function firstByLfd(lfd,wild){ return (wild==='Rehwild'?state.rehwild:state.schwarzwild).find(r=>r.lfdNr===lfd); }
 function onFormChange(e){
@@ -114,14 +125,15 @@ function onFormChange(e){
  const r=readForm(); document.getElementById('charge').textContent=calcCharge(r)||'—';
 }
 function readForm(){return {wildart:document.getElementById('wildart').value, lfdNr:document.getElementById('lfdNr').value.trim(), erlegedatum:document.getElementById('erlegedatum').value, stueckart:document.getElementById('stueckart').value, gewicht:document.getElementById('gewicht').value, metzger:document.getElementById('metzger').value, metzgerkosten:document.getElementById('metzgerkosten').value, produkt:document.getElementById('produkt').value, menge:document.getElementById('menge').value, lager:document.getElementById('lager').value};}
-function saveEntry(){ const r=readForm(); const missing=['lfdNr','erlegedatum','stueckart','produkt','menge','lager'].filter(k=>!r[k]); if(missing.length){alert('Bitte Pflichtfelder füllen: '+missing.join(', '));return;} r.chargennr=calcCharge(r); const targetCollection=r.wildart==='Rehwild'?'rehwild':'schwarzwild'; if(editTarget){ state[editTarget.collection].splice(editTarget.index,1); state[targetCollection].push(r); editTarget=null; setEditMode(false); } else { state[targetCollection].push(r); } persist(); document.getElementById('inputCard').classList.add('success-flash'); setTimeout(()=>document.getElementById('inputCard').classList.remove('success-flash'),1000); updateAll(); resetProductFieldsOnly(); alert('Eintrag gespeichert. Tabellen und Statistiken wurden aktualisiert.'); }
+function saveEntry(){ const r=readForm(); const missing=['lfdNr','erlegedatum','stueckart','produkt','menge','lager'].filter(k=>!r[k]); if(missing.length){alert('Bitte Pflichtfelder füllen: '+missing.join(', '));return;} r.chargennr=uniqueCharge(r, editTarget); const targetCollection=r.wildart==='Rehwild'?'rehwild':'schwarzwild'; if(editTarget){ state[editTarget.collection].splice(editTarget.index,1); state[targetCollection].push(r); editTarget=null; setEditMode(false); } else { state[targetCollection].push(r); } persist(); document.getElementById('inputCard').classList.add('success-flash'); setTimeout(()=>document.getElementById('inputCard').classList.remove('success-flash'),1000); updateAll(); resetProductFieldsOnly(); alert('Eintrag gespeichert. Tabellen und Statistiken wurden aktualisiert.'); }
 function resetProductFieldsOnly(){ ['produkt','menge','lager'].forEach(id=>document.getElementById(id).value=''); onFormChange(); }
 function resetForm(){ editTarget=null; setEditMode(false); ['lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','lager'].forEach(id=>document.getElementById(id).value=''); onFormChange(); }
 function setEditMode(active){ document.getElementById('editNote').classList.toggle('active',!!active); document.getElementById('saveBtn').textContent=active?'Änderungen speichern':'Eintrag speichern'; }
 function editEntry(collection,index){ const r=state[collection][index]; if(!r)return; editTarget={collection,index}; document.getElementById('wildart').value=collection==='rehwild'?'Rehwild':'Schwarzwild'; updateStueckart(); updateLfdDatalist(); ['lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','lager'].forEach(id=>{document.getElementById(id).value=r[id]??''}); setEditMode(true); onFormChange(); document.querySelector('[data-tab="input"]').click(); window.scrollTo({top:0,behavior:'smooth'}); }
 function deleteEntry(collection,index){ const r=state[collection][index]; if(!r)return; if(confirm(`Eintrag wirklich löschen?\n${r.chargennr||r.lfdNr||''}`)){ state[collection].splice(index,1); if(editTarget && editTarget.collection===collection && editTarget.index===index){editTarget=null; setEditMode(false);} persist(); updateAll(); } }
-function bindRowActions(){ document.addEventListener('click',e=>{ const more=e.target.closest('.more-btn'); document.querySelectorAll('.row-menu.open').forEach(m=>{if(!more || !m.contains(more)) m.classList.remove('open')}); if(more){more.nextElementSibling.classList.toggle('open'); return;} const act=e.target.closest('[data-action]'); if(!act)return; const collection=act.dataset.collection; const index=Number(act.dataset.index); if(act.dataset.action==='edit') editEntry(collection,index); if(act.dataset.action==='delete') deleteEntry(collection,index); }); }
-function actionCell(r){ if(r.__collection===undefined || r.__index===undefined) return ''; return `<td class="action-cell"><button class="more-btn" title="Optionen">⋮</button><div class="row-menu"><button data-action="edit" data-collection="${r.__collection}" data-index="${r.__index}">Bearbeiten</button><button class="delete" data-action="delete" data-collection="${r.__collection}" data-index="${r.__index}">Löschen</button></div></td>`; }
+function markSold(collection,index){ const r=state[collection][index]; if(!r)return; if(isSold(r)){ alert('Dieser Eintrag ist bereits als verkauft markiert.'); return; } if(confirm(`Eintrag als verkauft markieren?\n${r.chargennr||r.lfdNr||''}`)){ r.lager='verkauft'; persist(); updateAll(); setSyncStatus('Als verkauft markiert – wird mit Google Sheets synchronisiert ...','warn'); } }
+function bindRowActions(){ document.addEventListener('click',e=>{ const more=e.target.closest('.more-btn'); document.querySelectorAll('.row-menu.open').forEach(m=>{if(!more || !m.contains(more)) m.classList.remove('open')}); if(more){more.nextElementSibling.classList.toggle('open'); return;} const act=e.target.closest('[data-action]'); if(!act)return; const collection=act.dataset.collection; const index=Number(act.dataset.index); if(act.dataset.action==='edit') editEntry(collection,index); if(act.dataset.action==='sold') markSold(collection,index); if(act.dataset.action==='delete') deleteEntry(collection,index); }); }
+function actionCell(r){ if(r.__collection===undefined || r.__index===undefined) return ''; const soldBtn=isSold(r)?'':`<button data-action="sold" data-collection="${r.__collection}" data-index="${r.__index}">Als verkauft markieren</button>`; return `<td class="action-cell"><button class="more-btn" title="Optionen">⋮</button><div class="row-menu"><button data-action="edit" data-collection="${r.__collection}" data-index="${r.__index}">Bearbeiten</button>${soldBtn}<button class="delete" data-action="delete" data-collection="${r.__collection}" data-index="${r.__index}">Löschen</button></div></td>`; }
 function table(id, rows, cols, withActions=false){ const el=document.getElementById(id); el.innerHTML='<thead><tr>'+cols.map(c=>`<th>${escapeHtml(c.label)}</th>`).join('')+(withActions?'<th>Optionen</th>':'')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+cols.map(c=>`<td>${escapeHtml(c.f?c.f(r):r[c.key])}</td>`).join('')+(withActions?actionCell(r):'')+'</tr>').join('')+'</tbody>'; }
 const dataCols=[{key:'lfdNr',label:'lfd. Nr.'},{key:'erlegedatum',label:'Erlegedatum'},{key:'stueckart',label:'Stückart'},{key:'gewicht',label:'Gewicht kg'},{key:'metzger',label:'Metzger'},{key:'metzgerkosten',label:'Metzgerkosten'},{key:'produkt',label:'Produkt'},{key:'menge',label:'Menge/g'},{key:'chargennr',label:'Chargennr.'},{key:'lager',label:'Lager'}];
 function renderTables(){ const sr=document.getElementById('searchReh').value?.toLowerCase()||'', ss=document.getElementById('searchSchwarz').value?.toLowerCase()||''; const rehRows=state.rehwild.map((r,i)=>({...r,wildart:r.wildart||'Rehwild',__collection:'rehwild',__index:i})).filter(r=>JSON.stringify(r).toLowerCase().includes(sr)); const schwarzRows=state.schwarzwild.map((r,i)=>({...r,wildart:r.wildart||'Schwarzwild',__collection:'schwarzwild',__index:i})).filter(r=>JSON.stringify(r).toLowerCase().includes(ss)); table('tableReh',rehRows,dataCols,true); table('tableSchwarz',schwarzRows,dataCols,true); const lagerFilter=document.getElementById('lagerFilter').value, sl=document.getElementById('searchLager').value?.toLowerCase()||''; let rows=allRows().filter(r=>!isSold(r)&&(!lagerFilter||r.lager===lagerFilter)&&JSON.stringify(r).toLowerCase().includes(sl)); table('tableLager',rows,[{key:'wildart',label:'Wildart'},...dataCols],true); renderGewinn(); table('tablePreis',state.preisliste,[{key:'Produkt',label:'Produkt'},{key:'Preis/kg',label:'Preis/kg',f:r=>money(r['Preis/kg'])}]); }
@@ -131,7 +143,29 @@ function bars(id, obj, formatter=x=>x){ const max=Math.max(1,...Object.values(ob
 function renderStats(){ const rows=allRows(); const totalG=rows.reduce((s,r)=>s+numeric(r.menge),0); const sold=rows.filter(isSold); const profitRows=renderGewinn(); const revenue=profitRows.reduce((s,r)=>s+r.gesamt,0), profit=profitRows.reduce((s,r)=>s+r.gewinn,0); const uniquePieces=unique(rows.map(r=>r.lfdNr)).length; const kpiHtml=[['Einträge',rows.length],['lfd. Nr.',uniquePieces],['Menge gesamt',grams(totalG)],['Umsatz verkauft',money(revenue)]].map(([a,b])=>`<div class="kpi"><b>${escapeHtml(b)}</b><span>${a}</span></div>`).join(''); document.getElementById('kpis').innerHTML=kpiHtml; document.getElementById('statsKpis').innerHTML=kpiHtml+`<div class="kpi"><b>${money(profit)}</b><span>Gewinn nach Kosten</span></div>`; bars('lagerBars',groupSum(rows,'lager'),v=>v+' Einträge'); bars('productBars',groupSum(rows,'produkt',r=>numeric(r.menge)),grams); document.getElementById('quickChips').innerHTML=[`Rehwild: ${state.rehwild.length}`,`Schwarzwild: ${state.schwarzwild.length}`,`Verkauft: ${sold.length}`,`Produkte: ${unique(rows.map(r=>r.produkt)).length}`].map(x=>`<span class="chip">${escapeHtml(x)}</span>`).join(''); document.getElementById('profitBox').innerHTML=`<div class="kpis"><div class="kpi"><b>${sold.length}</b><span>Verkaufte Positionen</span></div><div class="kpi"><b>${money(revenue)}</b><span>Umsatz</span></div><div class="kpi"><b>${money(profit)}</b><span>Gewinn</span></div></div>`; }
 function updateFilters(){ const lagers=unique(allRows().map(r=>r.lager)); const lf=document.getElementById('lagerFilter'); const current=lf.value; lf.innerHTML='<option value="">Alle Lager</option>'+lagers.map(l=>`<option>${escapeHtml(l)}</option>`).join(''); lf.value=current; updateLfdDatalist(); }
 function updateAll(){ updateFilters(); renderTables(); renderStats(); }
-function exportData(){ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='wildliste-export.json'; a.click(); URL.revokeObjectURL(a.href); }
+function xmlEscape(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function sheetXml(name, headers, rows){
+ const headerXml='<Row>'+headers.map(h=>`<Cell><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`).join('')+'</Row>';
+ const rowsXml=rows.map(r=>'<Row>'+headers.map(h=>{const v=r[h]??''; const n=(typeof v==='number' || (String(v).trim()!=='' && !isNaN(Number(String(v).replace(',','.'))))) && !String(v).match(/^0/); return `<Cell><Data ss:Type="${n?'Number':'String'}">${xmlEscape(v)}</Data></Cell>`;}).join('')+'</Row>').join('');
+ return `<Worksheet ss:Name="${xmlEscape(name).slice(0,31)}"><Table>${headerXml}${rowsXml}</Table></Worksheet>`;
+}
+function buildBackupWorkbook(){
+ const rows=allRows().map(({__collection,__index,...r})=>r);
+ const lagerRows=allRows().filter(r=>!isSold(r)).map(({__collection,__index,...r})=>r);
+ const gewinnRows=renderGewinn().map(r=>({chargennr:r.chargennr, produkt:r.produkt, menge:r.menge, preisKg:r.preis, gesamt:r.gesamt, lfdNr:r.lfdNr, metzgerkostenEinmalig:r.kostenEinmalig, gewinn:r.gewinn}));
+ const preise=state.preisliste.map(r=>({Produkt:r.Produkt, Preis_kg:r['Preis/kg']}));
+ const dataHeaders=['wildart','lfdNr','erlegedatum','stueckart','gewicht','metzger','metzgerkosten','produkt','menge','chargennr','lager'];
+ const gewinnHeaders=['chargennr','produkt','menge','preisKg','gesamt','lfdNr','metzgerkostenEinmalig','gewinn'];
+ const preisHeaders=['Produkt','Preis_kg'];
+ return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Author>Wildliste</Author><Created>${new Date().toISOString()}</Created></DocumentProperties>${sheetXml('Alle Eintraege',dataHeaders,rows)}${sheetXml('Rehwild',dataHeaders,state.rehwild)}${sheetXml('Schwarzwild',dataHeaders,state.schwarzwild)}${sheetXml('Wildkuehlschrank',dataHeaders,lagerRows)}${sheetXml('Gewinn',gewinnHeaders,gewinnRows)}${sheetXml('Preisliste',preisHeaders,preise)}</Workbook>`;
+}
+function exportData(){
+ const blob=new Blob([buildBackupWorkbook()],{type:'application/vnd.ms-excel'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='Wildliste_Backup_'+new Date().toISOString().slice(0,10)+'.xls';
+ a.click(); URL.revokeObjectURL(a.href);
+}
 function bindSearch(){ ['searchReh','searchSchwarz','searchLager','lagerFilter'].forEach(id=>document.getElementById(id).addEventListener('input',renderTables)); }
 
 function setSyncStatus(text, mode='warn'){

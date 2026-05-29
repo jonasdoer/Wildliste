@@ -1,1 +1,9 @@
-{"name":"Wildliste","short_name":"Wildliste","start_url":"./index.html?v=robust-dropdown-1","display":"standalone","background_color":"#f5f1e9","theme_color":"#315c3b","icons":[]}
+{
+  "name":"Wildliste",
+  "short_name":"Wildliste",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#f5f1e9",
+  "theme_color":"#315c3b",
+  "icons":[]
+}
