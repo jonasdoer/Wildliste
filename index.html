@@ -130,11 +130,26 @@ function setSyncStatus(text, mode='warn'){
  st.textContent=text;
 }
 function normalizeState(s){
- s=s||{}; s.rehwild=Array.isArray(s.rehwild)?s.rehwild:[]; s.schwarzwild=Array.isArray(s.schwarzwild)?s.schwarzwild:[];
- s.preisliste=Array.isArray(s.preisliste)?s.preisliste:(INITIAL.preisliste||[]); s.listen=s.listen||INITIAL.listen||{};
- s.listen.lager=Array.isArray(s.listen.lager)?s.listen.lager:INITIAL.listen.lager;
+ s=s||{};
+ s.rehwild=Array.isArray(s.rehwild)?s.rehwild:[];
+ s.schwarzwild=Array.isArray(s.schwarzwild)?s.schwarzwild:[];
+ s.preisliste=Array.isArray(s.preisliste)&&s.preisliste.length?s.preisliste:(INITIAL.preisliste||[]);
+ const defaults = structuredClone(INITIAL.listen||{});
+ s.listen = Object.assign({}, defaults, s.listen||{});
+ ['rehwild','schwarzwild','metzger','lager','produkt'].forEach(k=>{
+   if(!Array.isArray(s.listen[k]) || !s.listen[k].length) s.listen[k]=defaults[k]||[];
+ });
  if(!s.listen.lager.includes('Eigengebrauch')) s.listen.lager.push('Eigengebrauch');
  return s;
+}
+function refreshDropdownOptions(){
+ const keep={metzger:document.getElementById('metzger')?.value||'', produkt:document.getElementById('produkt')?.value||'', lager:document.getElementById('lager')?.value||'', stueckart:document.getElementById('stueckart')?.value||''};
+ fillSelect('metzger',state.listen.metzger,true);
+ fillSelect('produkt',state.listen.produkt,true);
+ fillSelect('lager',state.listen.lager,true);
+ updateStueckart();
+ ['metzger','produkt','lager','stueckart'].forEach(id=>{ const el=document.getElementById(id); if(el && keep[id] && [...el.options].some(o=>o.value===keep[id])) el.value=keep[id]; });
+ updateLfdDatalist();
 }
 async function cloudRequest(action, payload={}){
  if(!API_URL) throw new Error('Keine Apps-Script-URL hinterlegt.');
@@ -150,6 +165,7 @@ async function syncFromCloud(){
    const data = await cloudRequest('getData');
    state = normalizeState(data.state);
    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+   refreshDropdownOptions();
    updateAll(); onFormChange();
    setSyncStatus('Synchronisiert mit Google Sheets: '+new Date().toLocaleString('de-DE'), 'ok');
  }catch(err){ setSyncStatus('Sync-Fehler: '+err.message, 'bad'); }
