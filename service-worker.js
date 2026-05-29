@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wildliste-gs-v1';
+const CACHE_NAME = 'wildliste-gs-auto-v1';
 const ASSETS = ['./','./index.html','./manifest.json'];
 self.addEventListener('install', event => {
   self.skipWaiting();

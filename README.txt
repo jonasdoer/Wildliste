@@ -1,10 +1,9 @@
-Wildliste mit Google Sheets Backend
+Wildliste Google Sheets Auto-Sync
 
-1) In Google Sheets: Erweiterungen > Apps Script öffnen.
-2) Inhalt von Code.gs komplett einfügen und speichern.
-3) Funktion setupWildlisteSheets einmal ausführen und Berechtigungen bestätigen.
-4) Bereitstellen > Neue Bereitstellung > Typ: Web-App.
-5) Ausführen als: Ich. Zugriff: Jeder.
-6) Bereitstellen und die Web-App-URL kopieren.
-7) index.html auf GitHub Pages hochladen/ersetzen.
-8) Wildliste öffnen, Web-App-URL oben einfügen und URL speichern.
+Bitte diese Dateien im GitHub-Repository ersetzen/hochladen:
+- index.html
+- service-worker.js
+- manifest.json
+
+Danach im Browser Strg+F5 drücken. Auf dem iPhone ggf. die Home-Bildschirm-App einmal schließen und neu öffnen.
+Die Apps-Script-URL ist fest eingebaut; es muss nichts mehr eingetragen werden.
